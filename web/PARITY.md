@@ -1,6 +1,6 @@
 # Browser port parity audit
 
-Source baseline: Java sources at repository commit `0f98a6f` (uploaded project), with supplied background artwork added in commit `0390a86`. The original desktop sources and Windows runner are preserved. The Java handlers, rather than older descriptions in the root README, are the behavior reference.
+Source baseline: Java sources at repository commit `0f98a6f` (uploaded project), with background collection artwork added in commit `0390a86` and the original runtime images subsequently supplied in `rooms.zip`. The original desktop sources and Windows runner are preserved. The Java handlers, rather than older descriptions in the root README, are the behavior reference.
 
 The user subsequently supplied the current desktop files. All attached Java source files matched this baseline byte for byte, and disassembly of all 49 uploaded class files matched the corresponding compiled source. There is no evidence that the port used older Java logic. The earlier visual mismatch came from layout changes introduced by the browser port and from artwork that was not available in the browser checkout. The layout restoration described below addresses those port changes; it does not imply an update to the desktop rules.
 
@@ -66,7 +66,7 @@ These are documented to avoid treating old descriptions or unused fields as comp
 
 ## Artwork availability
 
-The Java-source upload initially contained no `assets/` directory. Commit `0390a86` subsequently supplied eleven Spiral Atlas house backgrounds as root-level JPEGs, plus their credits and license. The browser currently selects seven images from that root collection. These selections are not proof that they are the exact files used by the user's desktop runtime.
+The original runtime artwork is now available. The user's `rooms.zip` supplied 26 image files, successfully extracted under `assets/rooms/` and preserved byte for byte. All nine room/menu backgrounds and every sprite/overlay requested by the room renderers are included in the browser build. The build selects 18 runtime images; backup/alternate images and the unused `shop.jpg` remain in the repository without being bundled.
 
 The restored pipeline resolves filenames and the `assets/rooms` directory case-insensitively, matching normal Windows filename behavior. For each runtime name, it prefers:
 
@@ -74,25 +74,29 @@ The restored pipeline resolves filenames and the `assets/rooms` directory case-i
 2. The canonical filename uploaded directly to the repository root.
 3. A supplied root-level house-collection alias, where one is defined.
 
-Within each location, the extension order is `.jpg`, `.png`, `.jpeg`. Actual runtime art therefore takes precedence over the collection aliases. Generated `assets/manifest.json` names the served files, and `assets/sources.json` records the repository-relative source selected for every image. The pipeline does not recursively bundle preview downloads or nested source-art collections.
+Within each location, the extension order is `.jpg`, `.png`, `.jpeg`. Actual runtime art takes precedence over the collection aliases, and the current build resolves all 18 images from `assets/rooms/`. Generated `assets/manifest.json` names the served files, and `assets/sources.json` records the repository-relative source selected for every image. The pipeline does not recursively bundle preview downloads or nested source-art collections.
 
 | Browser/Java asset name | Currently selected supplied file |
 | --- | --- |
-| `living_room` | `lounge.jpg` |
-| `bedroom` | `single bedroom.jpg` |
-| `moms_room` | `master bedroom.jpg` |
-| `kitchen` | `kitchen.jpg` |
-| `bathroom` | `bathroom.jpg` |
-| `outdoor` | `outside1.jpg` |
-| `menu` | `outside2.jpg` |
+| `menu` | `assets/rooms/menu.jpg` (entrance) |
+| `living_room` | `assets/rooms/living_room.jpg` |
+| `kitchen` | `assets/rooms/kitchen.jpg` |
+| `garage` | `assets/rooms/garage.jpg` |
+| `bedroom` | `assets/rooms/bedroom.jpg` |
+| `outdoor` | `assets/rooms/outdoor.jpg` |
+| `moms_room` | `assets/rooms/moms_room.jpg` |
+| `bathroom` | `assets/rooms/bathroom.jpg` |
+| `laundry_room` | `assets/rooms/laundry_room.jpg` |
 
-Still missing from the accessible checkout: `garage` and `laundry_room` backgrounds, plus original sprites/overlays `cat`, `cat_bowl`, `squirrel`, `closet_interior`, `roach_ai`, `rat`, `sprinkler_on`, `sprinkler_off` (fallback name `sprinkler`). These locations use explicitly identified drawn fallbacks. Supply the actual desktop runtime files under `assets/rooms/` (or canonical flat root filenames) and rebuild to replace fallbacks without changing the game rules.
+Supplied sprites/overlays are `cat.png`, `cat_bowl.png`, `squirrel.png`, `closet_interior.png`, `roach_ai.png`, `rat.png.png`, `sprinkler_on.png`, `sprinkler_off.png` and fallback `sprinkler.png`. The 493-byte rat file is a valid 48 × 36 indexed PNG, not a failed download. The browser build accommodates its duplicated extension by copying it unchanged to `assets/rat.png`, with provenance retaining `assets/rooms/rat.png.png`. Java's exact loader would miss that doubled filename; the browser accommodation is a rendering difference with no game-rule change.
 
-The user also attached `vn_house.zip`. Its transfer exceeded the chat tool's 32 MiB executor limit. That archive was **not inspected, extracted, or integrated**, so its contents are not included in the seven-image result above. Its presence does not establish that the missing runtime artwork has been recovered.
+The menu now uses the uploaded canonical `menu.jpg` (the entrance), replacing the earlier outside2 collection selection. Garage, laundry, closet, animal and sprinkler images now replace the first port's fallback shapes. The Java TV shop continues to use the bedroom background; the archive's `shop.jpg` is not referenced by that source screen.
 
-Java itself searches both `assets/rooms/` and `../assets/rooms/`, relative to the desktop process working directory. Thus a desktop installation can display its garage using the same Java source while this checkout lacks the corresponding image. The browser pipeline reads the repository's asset folder and canonical root files; it does not search outside the repository.
+Java itself searches both `assets/rooms/` and `../assets/rooms/`, relative to the desktop process working directory. The browser pipeline reads the repository's asset folder and canonical root files; it does not search outside the repository. All 26 supplied originals remain unchanged, including unused files and the doubled rat extension.
 
-Background credits: **Spiral Atlas Visual Novel House Backgrounds © 2023 by Spiral Atlas**, licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). [Full author/model acknowledgements](https://spiralatlas.github.io/credits/). Original `Credits and Information.txt` and `license.txt` are retained and included with the selected browser assets. The browser maps filenames to room roles and scales images to responsive layouts; JPEG originals are unchanged. The missing sprite downloader mentions a CC0 cat and CC-BY 4.0 roach, but no missing sprite is represented as a supplied image.
+Background credits: **Spiral Atlas Visual Novel House Backgrounds © 2023 by Spiral Atlas**, licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), with [author/model acknowledgements](https://spiralatlas.github.io/credits/). SHA-256 comparisons identify seven canonical backgrounds as unchanged collection files: menu/entrance, living room/lounge, bedroom/single bedroom, Mom's room/master bedroom, kitchen, bathroom and outdoor/outside1. Original `Credits and Information.txt` and `license.txt` are retained in the build. This attribution covers those matched collection backgrounds.
+
+Embedded XMP identifies the cat, squirrel and sprinkler images' Vecteezy creator IDs, source URLs and licensing page; [public/credits.html](public/credits.html) retains those exact credits. The supplied ZIP contains no separate credits/license documents, and no author/license metadata was found for garage, laundry, bowl, closet, roach or rat. Historical `download_assets.ps1` comments describe possible CC0/CC-BY downloads, but they do not establish the provenance of the uploaded replacements. The closet generator utilities likewise do not prove how the current PNG was produced. No license for unrelated images is inferred from the Spiral Atlas notice. Images, embedded watermarks and source metadata are preserved unchanged; the browser maps filenames and scales at display time.
 
 ## Restored presentation and remaining browser differences
 
@@ -106,7 +110,7 @@ Background credits: **Spiral Atlas Visual Novel House Backgrounds © 2023 by Spi
 - **Roaches:** targets are enlarged and distributed to avoid overlapping touch targets. There are still six stationary targets and a twelve-second limit.
 - **Browser behavior:** pause and hidden-tab handling are usability enhancements. No save system is added. Music genres retain the Java gameplay effects; the Java source contains no audio playback to port.
 
-The source layout has been restored, but full pixel-level or artwork parity is **not** claimed. The original garage/laundry backgrounds and sprites are still unavailable to this build, the seven collection images may differ from the desktop's canonical runtime images, and the nightmare illustration remains simplified. None of these limitations proves that the Java source was older.
+The source layout and supplied runtime artwork have been restored. Full pixel-level parity is **not** claimed: browser font metrics and responsive scaling differ, touch targets are enlarged where necessary, and the nightmare illustration remains simplified. These presentation differences do not imply older Java logic.
 
 ## Verification boundaries
 
@@ -115,6 +119,7 @@ Critical state transitions and action prerequisites are suitable for determinist
 ## Recorded validation
 
 - `npm test`: **56 passed, 0 failed**. This comprises the original 42 rule/action/physics/timer tests, eight source-room-layout tests, three asset-pipeline tests and three phone navigation/contact/delivery tests. Layout tests cover source coordinate landmarks, shared priority slots, state-dependent dimensions, bounds, non-overlap and reachable action geometry. Asset tests cover canonical precedence, case-insensitive Windows filenames, provenance and avoiding unintended preview collection copying.
-- `npm run test:e2e`: **14 passed**: seven desktop Chromium cases and seven iPad-sized Chromium touch cases. These exercise room/floor navigation, actual item-chain and roach/dish/fuse interactions, nightmare success/failure, arrival/shop/next-day/final-win transitions, phone conversations/delivery/music/Flappy input, source-positioned controls and touch targets.
+- `npm run build`: passed with **18 runtime images**. All 26 source images match their uploaded archive bytes. Asset/browser checks verify source provenance, decoded images and actual garage/laundry/sprite rendering.
+- `npm run test:e2e`: **18 Chromium cases passed**: nine desktop and nine iPad-sized touch cases, with no JavaScript page errors. These exercise room/floor navigation, actual item-chain and roach/dish/fuse interactions, nightmare success/failure, arrival/shop/next-day/final-win transitions, phone conversations/delivery/music/Flappy input, source-positioned controls, touch targets and integrated art.
 - These are current local-build results. They do not establish that an older hosted deployment or previously downloaded archive has been replaced.
-- WebKit installation encountered HTTP 403 from the browser-download CDN. **WebKit tests were not run**; actual iPad Safari and Windows hardware browser sessions were not performed in this environment. iPad-sized Chromium touch automation is not Safari validation.
+- WebKit iPad-touch project: **9 passed**, with no JavaScript page errors. Together with the 18 Chromium cases, **27 browser scenarios passed**. This runs Safari’s browser engine on Linux at an iPad touch viewport; physical iPad Safari and Windows hardware sessions remain unperformed.

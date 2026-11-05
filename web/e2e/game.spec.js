@@ -1,4 +1,8 @@
 import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 
 // Development hooks only set up conditions and speed up waiting. Outcomes in
 // these tests are earned through rendered controls, including the minigames.
@@ -108,6 +112,14 @@ test('original item chain, real roach targets, AC repair and timed dish controls
   await expect(page.locator(action('wrench'))).toBeDisabled();
   await press(page,action('roaches'),touch);
   await expect(page.getByRole('dialog',{name:'Clear the roaches'})).toBeVisible();
+  // The supplied roach_ai artwork must render in the actual minigame, rather
+  // than leaving the vector fallback visible underneath a failed image.
+  await expect(page.locator('.th-mini-roach img')).toHaveCount(6);
+  await expect.poll(()=>page.locator('.th-mini-roach img').evaluateAll(images=>images.every(img=>img.complete&&img.naturalWidth>0&&new URL(img.src).pathname.endsWith('/assets/roach_ai.png')))).toBe(true);
+  await expect.poll(()=>page.locator('.th-mini-roach svg').evaluateAll(fallbacks=>fallbacks.every(svg=>{
+    const style=getComputedStyle(svg);
+    return style.display==='none'||style.visibility==='hidden'||Number(style.opacity)===0||!svg.getClientRects().length;
+  }))).toBe(true);
   for(let i=1;i<=6;i++) await press(page,page.getByRole('button',{name:`Spray roach ${i}`,exact:true}),touch);
   await expect(page.locator('#modal')).toHaveCount(0);
   expect(await state(page,'roachesClearedEver')).toBe(true);
@@ -316,4 +328,89 @@ test('original floor navigation and source-positioned room controls stay usable'
   }
   await press(page,room('KITCHEN'),touch);
   await page.screenshot({path:info.outputPath('source-kitchen-layout.png'),fullPage:true});
+});
+
+
+const originalBackgrounds = ['menu','living_room','kitchen','garage','bedroom','outdoor','moms_room','bathroom','laundry_room'];
+const originalSprites = ['cat','cat_bowl','squirrel','closet_interior','roach_ai','rat','sprinkler_on','sprinkler_off','sprinkler'];
+const repositoryRoot = fileURLToPath(new URL('../../',import.meta.url));
+const sha256 = data => createHash('sha256').update(data).digest('hex');
+
+async function assertBackground(page, container, name, manifest) {
+  const background=page.locator(`${container} > img[data-room-background="${name}"]`);
+  await expect(background).toHaveCount(1);
+  await expect(background).toHaveAttribute('src',new RegExp(`(?:^|/)${manifest[name].replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}$`));
+  await expect.poll(()=>background.evaluate(image=>image.complete&&image.naturalWidth>0&&image.naturalHeight>0)).toBe(true);
+  await expect(page.locator(container).getByText(/art not supplied/i)).toHaveCount(0);
+  await expect(page.locator(`${container} [data-art-fallback]`)).toHaveAttribute('display','none');
+}
+async function assertSprite(page,name,manifest,minimum=1) {
+  const sprite=page.locator(`#room-art image[data-original-sprite="${name}"]`);
+  expect(await sprite.count()).toBeGreaterThanOrEqual(minimum);
+  const hrefs=await sprite.evaluateAll(images=>images.map(image=>image.getAttribute('href')));
+  for(const href of hrefs) expect(new URL(href,page.url()).pathname).toBe(`/${manifest[name]}`);
+}
+
+test('all original runtime assets retain canonical provenance and all nine backgrounds decode in their rooms', async ({page},info) => {
+  const touch=!!info.project.use.hasTouch;
+  const manifestResponse=await page.request.get('/assets/manifest.json');
+  const sourcesResponse=await page.request.get('/assets/sources.json');
+  expect(manifestResponse.ok()).toBe(true);expect(sourcesResponse.ok()).toBe(true);
+  const manifest=await manifestResponse.json(), sources=await sourcesResponse.json();
+  expect(Object.keys(manifest).sort()).toEqual([...originalBackgrounds,...originalSprites].sort());
+  expect(Object.keys(sources).sort()).toEqual(Object.keys(manifest).sort());
+  for(const name of Object.keys(manifest)) {
+    // Verify the browser's bytes against the actual imported desktop runtime
+    // files, rather than accepting a provenance label for a different picture.
+    expect(sources[name]).toMatch(/^assets\/rooms\/[^/]+$/);
+    const expectedSource=`assets/rooms/${name}${name==='rat'?'.png.png':originalBackgrounds.includes(name)?'.jpg':'.png'}`;
+    expect(sources[name]).toBe(expectedSource);
+    const response=await page.request.get(`/${manifest[name]}`);
+    expect(response.ok(),name).toBe(true);
+    expect(sha256(await response.body()),name).toBe(sha256(readFileSync(path.join(repositoryRoot,sources[name]))));
+  }
+  expect(manifest.rat).toBe('assets/rat.png');
+  const decoded=await page.evaluate(async assets=>Promise.all(Object.entries(assets).map(async([name,url])=>{
+    const image=new Image();image.src=url;await image.decode();
+    return {name,width:image.naturalWidth,height:image.naturalHeight};
+  })),manifest);
+  expect(decoded).toHaveLength(18);
+  for(const image of decoded){expect(image.width,image.name).toBeGreaterThan(0);expect(image.height,image.name).toBeGreaterThan(0);}
+  await assertBackground(page,'#menu-art','menu',manifest);
+  await start(page,touch);
+  for(const[id,name]of [['LIVING_ROOM','living_room'],['KITCHEN','kitchen'],['GARAGE','garage'],['BEDROOM','bedroom'],['OUTSIDE','outdoor'],['MOMS_ROOM','moms_room'],['BATHROOM','bathroom'],['BASEMENT','laundry_room']]) {
+    await press(page,room(id),touch);
+    await assertBackground(page,'#room-art',name,manifest);
+    if(id==='GARAGE'||id==='BASEMENT')await page.screenshot({path:info.outputPath(`original-${name}.png`),fullPage:true});
+  }
+});
+
+test('supplied character and object sprites, closet PNG and phone prior-room art replace illustration fallbacks', async({page},info)=>{
+  const touch=!!info.project.use.hasTouch;
+  const manifest=await(await page.request.get('/assets/manifest.json')).json();
+  await start(page,touch);
+  await press(page,room('BEDROOM'),touch);
+  await assertSprite(page,'cat',manifest);await assertSprite(page,'cat_bowl',manifest);
+  await setup(page,{squirrelPresent:true,squirrelCount:2});
+  await press(page,room('LIVING_ROOM'),touch);await assertSprite(page,'squirrel',manifest,2);
+  await setup(page,{squirrelPresent:false,ratsPresent:true,ratsClearedToday:false,roachesPresent:false,roachesCleared:true});
+  await press(page,room('GARAGE'),touch);await assertSprite(page,'rat',manifest);
+  await press(page,room('OUTSIDE'),touch);await assertSprite(page,'sprinkler_on',manifest);
+  await press(page,action('sprinkler'),touch);await assertSprite(page,'sprinkler_off',manifest);
+  await press(page,room('MOMS_ROOM'),touch);
+  await press(page,action('closet'),touch);
+  await assertBackground(page,'#room-art','closet_interior',manifest);
+  await press(page,action('leave-closet'),touch);
+  await assertBackground(page,'#room-art','moms_room',manifest);
+  // The source phone paints the prior room background alone: it must not keep
+  // bedroom cat sprites or a hidden-closet scene when opened from those rooms.
+  await press(page,room('BEDROOM'),touch);
+  await press(page,room('PHONE'),touch);
+  expect(await state(page,'roomBeforePhone')).toBe('BEDROOM');
+  await assertBackground(page,'#room-art','bedroom',manifest);
+  await expect(page.locator('#room-art [data-original-sprite]')).toHaveCount(0);
+  await press(page,'[data-phone="HOME"]',touch);await press(page,'[data-phone="BACK"]',touch);
+  await expect(page.locator('#room-title')).toHaveText('Bedroom');
+  await assertSprite(page,'cat',manifest);
+  await page.screenshot({path:info.outputPath('original-bedroom-sprites.png'),fullPage:true});
 });

@@ -214,8 +214,11 @@ export function startMinigame(type, container, opts = {}) {
       bug.innerHTML = BUG;
       const asset = opts.roachAsset || opts.assets?.roach_ai;
       if (asset) {
-        const img = el('img'); img.alt = ''; img.src = asset;
-        listen(img, 'error', () => img.remove());
+        const img = el('img'); img.alt = '';
+        const fallback = bug.querySelector('svg');
+        listen(img, 'load', () => { fallback.style.display = 'none'; });
+        listen(img, 'error', () => { fallback.style.display = ''; img.remove(); });
+        img.src = asset;
         bug.append(img);
       }
       bug.style.left = `${18 + (i % 3) * 31 + random() * 8}%`;

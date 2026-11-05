@@ -15,8 +15,11 @@ test('actual runtime art wins over both flat uploads and generic collection alia
 }));
 test('Windows-style filename casing and flat garage uploads work on a Linux build host',()=>fixture((root,out)=>{
   put(root,'Assets/Rooms/CAT.PNG','cat sprite');put(root,'GARAGE.JPG','garage');
-  const {manifest}=syncRuntimeAssets(root,out);
+  put(root,'Assets/Rooms/rat.png.png','original rat sprite');
+  const {manifest,provenance}=syncRuntimeAssets(root,out);
   assert.equal(manifest.garage,'assets/garage.jpg');assert.equal(manifest.cat,'assets/cat.png');assert.equal(readFileSync(path.join(out,'garage.jpg'),'utf8'),'garage');
+  assert.equal(manifest.rat,'assets/rat.png');assert.equal(readFileSync(path.join(out,'rat.png'),'utf8'),'original rat sprite');
+  assert.equal(provenance.rat,'Assets/Rooms/rat.png.png');assert.equal(readFileSync(path.join(root,'Assets/Rooms/rat.png.png'),'utf8'),'original rat sprite');
 }));
 test('source aliases remain a fallback, credits survive, nested preview art stays out',()=>fixture((root,out)=>{
   put(root,'lounge.jpg','fallback');put(root,'assets/rooms/CREDITS.txt','artist');put(root,'assets/rooms/vn_house/garage.jpg','unselected source collection');

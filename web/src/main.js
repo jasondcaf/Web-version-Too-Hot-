@@ -154,7 +154,7 @@ function updateGame() {
   const hints={LIVING_ROOM:'Keep the AC running. Watch the windows.',KITCHEN:'Drink, eat, and leave the sink spotless.',GARAGE:'Clear the workbench. Keep the power on.',BEDROOM:'Mittens, homework, and a little rest.',OUTSIDE:'Mow in short bursts. The heat adds up.',MOMS_ROOM:'The dresser might have what you need.',BATHROOM:'Shower, dry, change. Take care of yourself.',BASEMENT:'Wash → dry → fold. Come back when it’s ready.',PHONE:'Keep in touch. Keep an eye on your battery.'};
   document.querySelector('#room-hint').textContent=hints[room]||'';
   document.querySelectorAll('[data-room]').forEach(b=>{b.classList.toggle('active',b.dataset.room===room);b.setAttribute('aria-current',String(b.dataset.room===room));});
-  const newArtKey=JSON.stringify([room,state.roomBeforePhone,state.hidingInCloset,state.squirrelPresent,state.squirrelCount,state.roachesPresent,state.ratsPresent,state.mittensEscaped,state.catHunger<=20,state.windowOpen,state.bedroomWindowOpen,state.kitchenWindowOpen,state.powerOut,state.hasMomFlashlight,state.thunderstorm,state.sprinklerUsed]);
+  const newArtKey=JSON.stringify([room,state.roomBeforePhone,state.hidingInCloset,state.squirrelPresent,state.squirrelCount,state.roachesPresent,state.ratsPresent,state.mittensEscaped,state.catHunger<=20,state.catFoodScoops,state.laundryState,state.temperature>=75,state.windowOpen,state.bedroomWindowOpen,state.kitchenWindowOpen,state.powerOut,state.hasMomFlashlight,state.thunderstorm,state.sprinklerUsed]);
   if(newArtKey!==artKey){artKey=newArtKey;renderRoomArt(document.querySelector('#room-art'),room,state,manifest);}
   const actions=getActions(state,room);
   if(room==='PHONE') { updatePhone(actions); document.querySelector('#room-actions').hidden=true; }
@@ -245,7 +245,7 @@ app.addEventListener('click',async e=>{
   if(cmd==='new')newGame();
   if(cmd==='menu'){state=createGame();paused=false;render();}
   if(cmd==='help')help();
-  if(cmd==='credits')modal('Artwork credits',`<p><strong>Spiral Atlas Visual Novel House Backgrounds © 2023 by Spiral Atlas</strong>.</p><p>Licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>. Supplied JPGs are unchanged and scaled at display time.</p><p><a href="https://spiralatlas.github.io/credits/" target="_blank" rel="noopener noreferrer">Full artist acknowledgements</a> · <a href="${base}credits.html" target="_blank" rel="noopener noreferrer">Game credits</a></p>`);
+  if(cmd==='credits')modal('Artwork credits',`<p><strong>Spiral Atlas Visual Novel House Backgrounds © 2023 by Spiral Atlas</strong>.</p><p>The matching house-background collection is licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>. Other supplied game images retain their embedded credits and watermarks. Images are unchanged and scaled at display time.</p><p><a href="https://spiralatlas.github.io/credits/" target="_blank" rel="noopener noreferrer">House-background acknowledgements</a> · <a href="${base}credits.html" target="_blank" rel="noopener noreferrer">All game artwork credits</a></p>`);
   if(cmd==='journal')journal();
   if(cmd==='close'){if(modalKind==='pause')paused=false;closeModal();render();}
   if(cmd==='put-phone')navigate(state.roomBeforePhone||'LIVING_ROOM');

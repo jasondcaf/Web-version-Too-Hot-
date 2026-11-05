@@ -14,6 +14,12 @@ function image(folder, name) {
     const file=files.find(e=>e.name.toLowerCase()===(name+ext).toLowerCase());
     if(file)return {source:path.join(folder,file.name),ext};
   }
+  // The desktop upload names the valid rat sprite rat.png.png. Normalize only
+  // the generated filename, preserving the uploaded source and its provenance.
+  if(name==='rat'){
+    const file=files.find(e=>e.name.toLowerCase()==='rat.png.png');
+    if(file)return {source:path.join(folder,file.name),ext:'.png'};
+  }
   return null;
 }
 

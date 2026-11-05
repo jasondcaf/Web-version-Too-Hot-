@@ -20,7 +20,7 @@ export default defineConfig({
   projects: [
     { name: 'chromium-desktop', use: { browserName: 'chromium', viewport: { width: 1280, height: 800 }, launchOptions: { executablePath, args: ['--no-sandbox'] } } },
     { name: 'chromium-ipad-touch', use: { browserName: 'chromium', ...tablet, launchOptions: { executablePath, args: ['--no-sandbox'] } } },
-    ...(process.env.TEST_WEBKIT === '1' ? [{ name: 'webkit-ipad', use: { browserName: 'webkit', ...tablet } }] : []),
+    ...(process.env.TEST_WEBKIT === '1' ? [{ name: 'webkit-ipad', use: { browserName: 'webkit', ...tablet, launchOptions: { executablePath: process.env.WEBKIT_PATH || undefined } } }] : []),
   ],
   webServer: {
     command: 'node scripts/e2e-server.mjs',
