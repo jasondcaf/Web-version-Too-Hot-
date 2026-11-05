@@ -2,6 +2,8 @@
 
 Source baseline: Java sources at repository commit `0f98a6f` (uploaded project), with supplied background artwork added in commit `0390a86`. The original desktop sources and Windows runner are preserved. The Java handlers, rather than older descriptions in the root README, are the behavior reference.
 
+The user subsequently supplied the current desktop files. All attached Java source files matched this baseline byte for byte, and disassembly of all 49 uploaded class files matched the corresponding compiled source. There is no evidence that the port used older Java logic. The earlier visual mismatch came from layout changes introduced by the browser port and from artwork that was not available in the browser checkout. The layout restoration described below addresses those port changes; it does not imply an update to the desktop rules.
+
 This is a behavior checklist, not a claim that every path has been manually tested. See `README.md` in this folder and test output for validation actually performed.
 
 ## Component mapping
@@ -12,9 +14,9 @@ This is a behavior checklist, not a claim that every path has been manually test
 | `Screens.java` | Menu and win/loss views | TOO HOT / “Don't let her find out.”; survive three days; replay and return to menu; final day and reason displayed. |
 | `GameState.java` | `src/engine.js` | Single state, inventory/world flags, upgrades, daily reset; 6 starting coins; daily duration counters 300/270/240; temperature 25, hunger/thirst/cat 100, stress 0. |
 | `GameLoop.java` | `src/engine.js` | One 500 ms simulation tick; stat decay, environment, random events, chores, phone, friend texts, cat chaos, arrival and loss checks. |
-| `HUDPanel.java` | Browser HUD | Temperature, hunger, thirst, cat hunger, stress, phone battery, coins/day/countdown; AC/power/windows/storm/cat alerts; stool/wrench/spray; six core chores and bonus chores. |
-| `GamePanel.java` | Room navigation and status messages | Living room, kitchen, garage, bedroom, backyard, mom's room, bathroom, basement and phone; phone remembers previous room. Java uses ground/upstairs/basement navigation strips. |
-| `RoomPanel.java` | Shared room styling and responsive controls | Dark navy glass buttons, colored accents, badges and status overlays; outage darkness reduced by flashlight; heat/cold/smoke feedback. |
+| `HUDPanel.java` | `src/main.js`, `src/source-layout.css` | Temperature, hunger, thirst, cat hunger, stress, phone battery, coins/day/countdown; AC/power/windows/storm/cat alerts; stool/wrench/spray; six core chores and bonus chores; restored compact stats-left/status-middle/timer-right arrangement. |
+| `GamePanel.java` | Room navigation and status messages | Living room, kitchen, garage, bedroom, backyard, mom's room, bathroom, basement and phone; phone remembers previous room. Ground/upstairs/basement navigation strips are restored. A floor switch changes the navigation strip without moving to a different room. |
+| `RoomPanel.java` and room button layouts | `src/room-layout.js`, `src/source-layout.css`, shared room art | Dark navy glass buttons, colored accents, badges and status overlays; source-derived 800 × 455 button geometry shares the room-art coordinate system; outage darkness reduced by flashlight; heat/cold/smoke feedback. |
 | `LivingRoomPanel.java` | `src/actions.js` and room UI | Open/close living window (broken slider cooldown disables it); thermostat off/eco/normal/blast; wrench repair consumes wrench and gives 3 coins; shoo squirrels for 1 coin plus stress penalty 10+5×count; TV; vacuum +1; tidy; cushion search 0–5/day; cat-mess cleanup. |
 | `KitchenPanel.java` | `src/actions.js` and dishes UI | Stool-gated kitchen drink (+22 or +35 bottle, −3 temperature); stool-gated dish timing game; sweep +1; cat food scoop (+40 cat hunger, consumes one scoop); kitchen window; replace bag only after trash taken out; loose change; delivered food pickup; freezer/ice cream once daily; microwave then heated food +32 hunger; cold food +18 hunger/+5 stress; power outage disables fridge food; tidy. |
 | `GaragePanel.java` | `src/actions.js` and roach/fuse UI | Clear 6 roaches in 12s using spray; success consumes spray, gives 2 coins and permanently clears roaches; access wrench after roaches cleared (rats do not block it); mouse trap clears rats (+3 coins, consumes trap); loose change; three fuse memory rounds restore power (+3 coins). |
@@ -23,11 +25,11 @@ This is a behavior checklist, not a claim that every path has been manually test
 | `MomsRoomPanel.java` | `src/actions.js` | Dresser supplies spray (not living-room closet as old README says); flashlight during outage; rest −18 stress/−3 temperature; closet hiding reduces stress; nightstand search. |
 | `BathroomPanel.java` | `src/actions.js` | Shower once −22 temperature/−10 stress/+6 thirst, then bedroom towel/change chain; unlimited sink drink +18/+30 bottle without stool; cabinet once −28 stress; shelf search; mop +1. |
 | `BasementPanel.java` | `src/actions.js` | Laundry: idle→washing→washed→drying→dry→folded; wash consumes one soap; wash/dry each 10 ticks or7 with soap upgrade; delivered detergent +2; dirty clothes permit another load. |
-| `PhonePanel.java` | Phone UI, `src/actions.js`, Flappy game | Messages to Mom/friend, pending text reply/ignore, five delivery choices, music genres, phone battery and charging, Flappy Bird. No network account, API, or real purchases. |
+| `PhonePanel.java` | `src/phone-view.js`, `src/actions.js`, Flappy game | Separate Mom/friend contact and conversation pages, pending text reply/ignore, delivery dropdown and order button with five choices, music genres, phone battery and charging, Flappy Bird. No network account, API, or real purchases. |
 | `NightmarePanel.java` | Nightmare memory game | Three circuit rounds at ≥90 temperature; wrong input/time limit is fatal; escape gives +5 coins, temperature70/stress80, resume in living room. |
-| `MomArrivalPanel.java` | Arrival screen | Stop game clock; show arriving mom, day assessment and allowance; continue to shop or final ending. |
-| `ShopPanel.java` | `src/engine.js` and shop UI | Eight visible items selected by upcoming day, persistent upgrade flags, no repeat purchases, affordability, start next day resets daily state. |
-| `AssetManager.java` | Browser asset manifest/loading | Original named room backgrounds/sprites; no preview collection or emulation. Missing art must be reported. |
+| `MomArrivalPanel.java` | `src/interlude-art.js` and arrival screen | Stop game clock; show the Java-derived illustrated house/car/mom scene, day assessment and allowance; continue to shop or final ending. |
+| `ShopPanel.java` | `src/engine.js`, `src/interlude-art.js` and shop UI | Restored Java-derived television framing, with eight visible items selected by upcoming day, persistent upgrade flags, no repeat purchases, affordability, start next day resets daily state. |
+| `AssetManager.java` | `scripts/asset-files.mjs`, asset manifest and provenance | Canonical room backgrounds/sprites before collection aliases; Windows-compatible case-insensitive lookup; selected source paths in `assets/sources.json`; no preview collection or emulation. Missing art is reported. |
 | `GenerateCloset.java`, `GenerateCloset2.java` | Desktop asset generator utilities | Preserved tools, not gameplay screens. Browser uses the supplied closet image when present. |
 
 ## Exact minigame rules
@@ -60,13 +62,21 @@ These are documented to avoid treating old descriptions or unused fields as comp
 6. Phone charging and washer/dryer progress do not check power outage. Music names affect the displayed genre and stress calculation; the Java source does not contain audio playback.
 7. Java's direct actions (rest, drinks, etc.) generally have no cooldown; repeating them is allowed.
 8. Food pickup clears `deliveryArrived` but leaves `deliveryOrdered`, so Java reasserts arrival next tick. The generic kitchen pickup also does not distinguish food from drinks.
-9. Java's delivery UI disables every order if any delivery/medicine/detergent is ordered or a speaker is owned; buying the speaker therefore disables later ordering. Browser deviations, if any, must be explicitly documented.
+9. Java's delivery UI disables every order if any delivery/medicine/detergent is ordered or a speaker is owned; buying the speaker therefore disables later ordering. The browser preserves this original order gate.
 
 ## Artwork availability
 
-The Java-source upload initially contained no `assets/` directory. Commit `0390a86` subsequently supplied eleven original Spiral Atlas house backgrounds as root-level JPEGs, plus their original credits and license. The browser asset pipeline selects the relevant images rather than bundling unrelated preview art. Files in `assets/rooms/` with exact Java runtime names take precedence when supplied later.
+The Java-source upload initially contained no `assets/` directory. Commit `0390a86` subsequently supplied eleven Spiral Atlas house backgrounds as root-level JPEGs, plus their credits and license. The browser currently selects seven images from that root collection. These selections are not proof that they are the exact files used by the user's desktop runtime.
 
-| Browser/Java asset name | Supplied file used |
+The restored pipeline resolves filenames and the `assets/rooms` directory case-insensitively, matching normal Windows filename behavior. For each runtime name, it prefers:
+
+1. The canonical filename under `<repository>/assets/rooms/`.
+2. The canonical filename uploaded directly to the repository root.
+3. A supplied root-level house-collection alias, where one is defined.
+
+Within each location, the extension order is `.jpg`, `.png`, `.jpeg`. Actual runtime art therefore takes precedence over the collection aliases. Generated `assets/manifest.json` names the served files, and `assets/sources.json` records the repository-relative source selected for every image. The pipeline does not recursively bundle preview downloads or nested source-art collections.
+
+| Browser/Java asset name | Currently selected supplied file |
 | --- | --- |
 | `living_room` | `lounge.jpg` |
 | `bedroom` | `single bedroom.jpg` |
@@ -76,20 +86,27 @@ The Java-source upload initially contained no `assets/` directory. Commit `0390a
 | `outdoor` | `outside1.jpg` |
 | `menu` | `outside2.jpg` |
 
-Still missing: `garage` and `laundry_room` backgrounds, plus original sprites/overlays `cat`, `cat_bowl`, `squirrel`, `closet_interior`, `roach_ai`, `rat`, `sprinkler_on`, `sprinkler_off` (fallback name `sprinkler`). Those locations use explicitly identified Java-style drawn fallbacks. The fallback art preserves functioning controls and mechanics; it does not establish original visual parity. Supply the remaining images under `assets/rooms/` and rebuild to replace fallbacks without changing the game rules.
+Still missing from the accessible checkout: `garage` and `laundry_room` backgrounds, plus original sprites/overlays `cat`, `cat_bowl`, `squirrel`, `closet_interior`, `roach_ai`, `rat`, `sprinkler_on`, `sprinkler_off` (fallback name `sprinkler`). These locations use explicitly identified drawn fallbacks. Supply the actual desktop runtime files under `assets/rooms/` (or canonical flat root filenames) and rebuild to replace fallbacks without changing the game rules.
 
-Background credits: **Spiral Atlas Visual Novel House Backgrounds ©2023 by Spiral Atlas**, licensed under [CC BY4.0](https://creativecommons.org/licenses/by/4.0/). [Full author/model acknowledgements](https://spiralatlas.github.io/credits/). Original `Credits and Information.txt` and `license.txt` are retained and included with the selected browser assets. Browser adaptation maps filenames to room roles and scales images to responsive layouts; JPEG originals are unchanged. The missing sprite downloader mentions a CC0 cat and CC-BY4.0 roach, but no missing sprite is represented as a supplied image.
+The user also attached `vn_house.zip`. Its transfer exceeded the chat tool's 32 MiB executor limit. That archive was **not inspected, extracted, or integrated**, so its contents are not included in the seven-image result above. Its presence does not establish that the missing runtime artwork has been recovered.
 
-## Browser presentation and usability differences
+Java itself searches both `assets/rooms/` and `../assets/rooms/`, relative to the desktop process working directory. Thus a desktop installation can display its garage using the same Java source while this checkout lacks the corresponding image. The browser pipeline reads the repository's asset folder and canonical root files; it does not search outside the repository.
 
-- Browser room controls use a responsive action grid and direct room navigation, rather than the Java absolute-positioned controls and separate floor navigation strips. Larger pointer targets support iPad touch without changing action costs or rewards.
-- The shop uses readable item cards rather than the Java television illustration. The eight-item day selection and upgrade rules remain the same.
-- Mom's arrival uses a simpler CSS house/car/mom animation. The allowance, survival/chore bonus, shop transition and final ending are state-driven; the original illustration and exact animation duration are not reproduced.
-- Nightmare circuit nodes and wires use the Java logical positions, scaled to the browser board. Flashing states, three memory rounds, shuffled paths, timeout and fatal mistake rules are preserved. The demon-cat decoration and surrounding illustration are simplified.
-- Roach targets are enlarged and distributed to avoid overlapping touch targets. There are still six stationary targets and a twelve-second limit.
-- The HUD rearranges survival stats, inventory, six core chores, the five bonus jobs and open-window status into responsive bars, badges and strips rather than reproducing the exact Swing HUD geometry.
-- Pause and hidden-tab handling are browser usability enhancements. No save system is added. Music genres retain the Java gameplay effects; the uploaded Java has no audio playback to port.
-- Original artwork is reused where supplied. Missing garage/laundry backgrounds and sprites, plus the simplified scenes described above, remain visual limitations; full visual parity is not claimed.
+Background credits: **Spiral Atlas Visual Novel House Backgrounds © 2023 by Spiral Atlas**, licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). [Full author/model acknowledgements](https://spiralatlas.github.io/credits/). Original `Credits and Information.txt` and `license.txt` are retained and included with the selected browser assets. The browser maps filenames to room roles and scales images to responsive layouts; JPEG originals are unchanged. The missing sprite downloader mentions a CC0 cat and CC-BY 4.0 roach, but no missing sprite is represented as a supplied image.
+
+## Restored presentation and remaining browser differences
+
+- **Room controls:** `src/room-layout.js` transcribes the Java room buttons' 800 × 455 geometry, including the living-room thermostat row, bedroom cat/bed/desk columns, kitchen sink/cat-food/fridge columns, priority slots and state-dependent laundry widths. Buttons and room art share this logical coordinate system. Source-hidden controls remain hidden; disabled information controls remain where Java displays them.
+- **Floor navigation:** the ground, upstairs and basement strips replace the first port's flat room list. Selecting Upstairs, Downstairs, Basement or Ground Floor changes the visible navigation strip without implicitly changing the current room, as in `GamePanel.java`.
+- **HUD:** the restored compact layout places stacked survival stats on the left, environment and inventory status in the middle, and room/day/countdown/coins on the right. Core and bonus chore strips remain below it. The browser retains its help, pause and optional fullscreen controls.
+- **Phone:** the source hierarchy is restored: app home, Messages contact list, separate Mom/friend conversations, delivery selector and order button, music, and Flappy Bird. Back/Home controls navigate the phone pages; underlying rules remain in `actions.js`.
+- **Shop and arrival:** the shop again uses a Java-derived TV body, screen and stand over the bedroom. Mom's arrival uses a Java-derived illustrated house, car and walking-mom scene. These are browser translations, not claims of identical rasterization, fonts or every animation frame.
+- **Touch and narrow screens:** source-style buttons retain colored accents, borders and logical placement on landscape/tablet/desktop layouts. A taller stage and minimum 44 CSS-pixel action targets support touch. At widths of 600 CSS pixels or less, room actions use a flowing grid to keep controls readable and reachable; that narrow-screen arrangement intentionally differs from Swing.
+- **Nightmare:** circuit nodes and wires use the Java logical positions. Flashing states, three memory rounds, shuffled paths, timeout and fatal mistake rules are preserved. The demon-cat decoration and surrounding illustration remain minimal compared with Java.
+- **Roaches:** targets are enlarged and distributed to avoid overlapping touch targets. There are still six stationary targets and a twelve-second limit.
+- **Browser behavior:** pause and hidden-tab handling are usability enhancements. No save system is added. Music genres retain the Java gameplay effects; the Java source contains no audio playback to port.
+
+The source layout has been restored, but full pixel-level or artwork parity is **not** claimed. The original garage/laundry backgrounds and sprites are still unavailable to this build, the seven collection images may differ from the desktop's canonical runtime images, and the nightmare illustration remains simplified. None of these limitations proves that the Java source was older.
 
 ## Verification boundaries
 
@@ -97,6 +114,7 @@ Critical state transitions and action prerequisites are suitable for determinist
 
 ## Recorded validation
 
-- `npm test`: **42 passed, 0 failed, 0 skipped**, independently rerun after the source/art integration. Covers room prerequisites, item consumption, all six chores, food/feeding values, searches/bonus jobs, mowing, phone/order rules, day resets and scoring, three-day survival through real actions, nightmare outcomes, Flappy physics, fuse sequences, and minigame timer visibility/cleanup.
-- Browser validation is reported separately in the browser README and final handoff; only completed runs should be counted. Chromium with touch/iPad dimensions is distinct from Safari.
-- WebKit installation encountered HTTP403 from the browser-download CDN. **WebKit tests were not run**; actual iPad Safari and Windows hardware browser sessions were not performed in this environment.
+- `npm test`: **56 passed, 0 failed**. This comprises the original 42 rule/action/physics/timer tests, eight source-room-layout tests, three asset-pipeline tests and three phone navigation/contact/delivery tests. Layout tests cover source coordinate landmarks, shared priority slots, state-dependent dimensions, bounds, non-overlap and reachable action geometry. Asset tests cover canonical precedence, case-insensitive Windows filenames, provenance and avoiding unintended preview collection copying.
+- `npm run test:e2e`: **14 passed**: seven desktop Chromium cases and seven iPad-sized Chromium touch cases. These exercise room/floor navigation, actual item-chain and roach/dish/fuse interactions, nightmare success/failure, arrival/shop/next-day/final-win transitions, phone conversations/delivery/music/Flappy input, source-positioned controls and touch targets.
+- These are current local-build results. They do not establish that an older hosted deployment or previously downloaded archive has been replaced.
+- WebKit installation encountered HTTP 403 from the browser-download CDN. **WebKit tests were not run**; actual iPad Safari and Windows hardware browser sessions were not performed in this environment. iPad-sized Chromium touch automation is not Safari validation.

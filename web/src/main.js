@@ -4,11 +4,18 @@ import { rooms, getActions, executeAction } from './actions.js';
 import { startMinigame } from './minigames.js';
 import { mountFlappy } from './flappy.js';
 import { renderRoomArt } from './room-art.js';
+import { layoutActions } from './room-layout.js';
+import { renderPhoneContent, parentPhoneScreen } from './phone-view.js';
+import './phone-view.css';
+import { shopFrameHTML, arrivalSceneHTML, shopItemIconHTML } from './interlude-art.js';
+import './interlude-art.css';
+import './source-layout.css';
 
 const app = document.querySelector('#app');
 let state = createGame();
 let manifest = {};
 let screenKey = '', actionKey = '', artKey = '', phoneTab = 'HOME';
+let navFloor='GROUND', floorKey='', selectedDelivery='order-Food';
 let paused = false, modalKind = '', miniCleanup = null, flappyCleanup = null;
 let notice = '', noticeUntil = 0;
 let modalReturnFocus = null;
@@ -52,13 +59,13 @@ function modal(title, body, kind='info') {
 }
 function newGame() {
   stopActivities(); closeModal(); state=createGame(); state.screen='GAME'; paused=false;
-  phoneTab='HOME'; notice='Mom left a note. Check your chores, grab the stool, and keep cool.'; noticeUntil=Date.now()+7000; screenKey=''; render();
+  navFloor='GROUND'; selectedDelivery='order-Food'; phoneTab='HOME'; notice='Mom left a note. Check your chores, grab the stool, and keep cool.'; noticeUntil=Date.now()+7000; screenKey=''; render();
 }
 function navigate(id) {
   if (state.screen!=='GAME' || modalKind==='minigame') return;
   flappyCleanup?.(); flappyCleanup=null;
   if (id==='PHONE' && state.currentRoom!=='PHONE') state.roomBeforePhone=state.currentRoom;
-  state.currentRoom=id; phoneTab='HOME'; actionKey=''; artKey=''; render();
+  state.currentRoom=id; navFloor=roomFloor(id); phoneTab='HOME'; actionKey=''; artKey=''; render();
 }
 function doAction(id,payload={}) {
   if (paused || state.screen!=='GAME') return;
@@ -111,7 +118,21 @@ function buildMenu() {
   renderRoomArt(document.querySelector('#menu-art'),'MENU',state,manifest);
 }
 function buildGame() {
-  app.innerHTML=`<main class="game-shell"><header class="topbar"><a class="brand" href="#" data-command="help">TOO HOT</a><div class="day-label" id="day-label"></div><div class="top-tools">${button('Chores','data-command="journal"')}${button('Help','data-command="help"')}${button('Pause','data-command="pause" id="pause-button"')}${button('⛶','data-command="fullscreen" aria-label="Toggle fullscreen"')}</div></header><section class="hud" aria-label="Survival status"><div class="stats" id="stats"></div><div class="environment" id="environment"></div><div class="countdown"><span id="timer"></span><small>until Mom arrives</small><strong id="coins"></strong></div></section><div class="chores-strip" id="chores"></div><div class="bonus-strip" id="bonus"></div><section class="room-scene" aria-label="Current room"><div id="room-art" class="room-art"></div><div class="room-heading"><h1 id="room-title"></h1><span id="room-hint"></span></div><div class="room-progress" id="room-progress"></div><div id="room-actions" class="room-actions"></div><div id="phone" hidden></div></section><div class="status-line" id="status" role="status" aria-live="polite"></div><nav class="room-nav" aria-label="Rooms">${rooms.map((r,i)=>button(`<span class="nav-key">${i+1}</span> ${escape(r.title)}`,`data-room="${r.id}"`)).join('')}</nav></main>`;
+  navFloor=roomFloor(state.currentRoom);floorKey='';
+  app.innerHTML=`<main class="game-shell source-game"><header class="topbar"><a class="brand" href="#" data-command="help">TOO HOT</a><div class="day-label" id="day-label"></div><div class="top-tools">${button('Chores','data-command="journal"')}${button('Help','data-command="help"')}${button('Pause','data-command="pause" id="pause-button"')}${button('⛶','data-command="fullscreen" aria-label="Toggle fullscreen"')}</div></header><section class="hud" aria-label="Survival status"><div class="stats" id="stats"></div><div class="environment" id="environment"></div><div class="countdown"><small id="hud-room"></small><span id="timer"></span><small>until Mom arrives</small><strong id="coins"></strong></div></section><div class="chores-strip" id="chores"></div><div class="bonus-strip" id="bonus"></div><section class="room-scene" aria-label="Current room"><div id="room-art" class="room-art"></div><div class="room-heading"><h1 id="room-title"></h1><span id="room-hint"></span></div><div class="room-progress" id="room-progress"></div><div id="room-actions" class="room-actions source-room-actions"></div><div id="phone" hidden></div></section><div class="status-line" id="status" role="status" aria-live="polite"></div><nav class="room-nav" aria-label="Rooms"></nav></main>`;
+}
+function roomFloor(id) {
+  return ['MOMS_ROOM','BATHROOM'].includes(id)?'UPSTAIRS':id==='BASEMENT'?'BASEMENT':'GROUND';
+}
+function updateFloorNav() {
+  const entries=navFloor==='UPSTAIRS'?[['MOMS_ROOM',"Mom's Room"],['BATHROOM','Bathroom'],['PHONE','Phone'],['@GROUND','⬇ Downstairs']]:navFloor==='BASEMENT'?[['BASEMENT','Laundry Room'],['@GROUND','⬆ Ground Floor']]:[['LIVING_ROOM','Living Room'],['KITCHEN','Kitchen'],['GARAGE','Garage'],['BEDROOM','Bedroom'],['OUTSIDE','Backyard'],['@BASEMENT','⬇ Basement'],['PHONE','Phone'],['@UPSTAIRS','⬆ Upstairs']];
+  const next=JSON.stringify([navFloor,state.currentRoom]);
+  if(next===floorKey)return;floorKey=next;
+  setContent(document.querySelector('.room-nav'),entries.map(([id,label])=>button(escape(label),id.startsWith('@')?`data-floor="${id.slice(1)}"`:`data-room="${id}" class="${id===state.currentRoom?'active':''}" aria-current="${id===state.currentRoom}"`)).join(''));
+}
+function actionHTML(a) {
+  const r=a.rect;
+  return button(escape(a.label),`data-action="${a.id}" class="action ${a.category||''}" data-source-x="${r.x}" data-source-y="${r.y}" style="--room-x:${r.x/8}%;--room-y:${r.y/4.55}%;--room-w:${r.w/8}%;--room-h:${r.h/4.55}%" ${a.enabled===false?'disabled':''}`);
 }
 function updateGame() {
   document.querySelector('#day-label').textContent=`DAY ${state.day} / 3`;
@@ -126,6 +147,9 @@ function updateGame() {
   setContent(document.querySelector('#chores'),`${chores().map(([name,done,progress])=>button(`${done?'✓':'○'} ${name} <small>${done?'':escape(progress)}</small>`,`data-command="journal" class="${done?'done':''}"`)).join('')}`);
   document.querySelector('#bonus').textContent='BONUS  '+[['Vacuum','choreVacuum'],['Plants','choreWaterPlants'],['Mail','choreMailIn'],['Sweep','choreSweepKitchen'],['Mop','choreMopBathroom']].map(([name,key])=>(state[key]?'✓ ':'○ ')+name).join('   ·   ');
   const room=state.currentRoom;
+  document.querySelector('.room-scene').classList.toggle('phone-open',room==='PHONE');
+  document.querySelector('#hud-room').textContent=roomTitle(room);
+  updateFloorNav();
   document.querySelector('#room-title').textContent=roomTitle(room);
   const hints={LIVING_ROOM:'Keep the AC running. Watch the windows.',KITCHEN:'Drink, eat, and leave the sink spotless.',GARAGE:'Clear the workbench. Keep the power on.',BEDROOM:'Mittens, homework, and a little rest.',OUTSIDE:'Mow in short bursts. The heat adds up.',MOMS_ROOM:'The dresser might have what you need.',BATHROOM:'Shower, dry, change. Take care of yourself.',BASEMENT:'Wash → dry → fold. Come back when it’s ready.',PHONE:'Keep in touch. Keep an eye on your battery.'};
   document.querySelector('#room-hint').textContent=hints[room]||'';
@@ -136,8 +160,8 @@ function updateGame() {
   if(room==='PHONE') { updatePhone(actions); document.querySelector('#room-actions').hidden=true; }
   else {
     flappyCleanup?.(); flappyCleanup=null; document.querySelector('#phone').hidden=true;document.querySelector('#room-actions').hidden=false;
-    const next=JSON.stringify(actions);
-    if(next!==actionKey){ actionKey=next;setContent(document.querySelector('#room-actions'),actions.map(a=>button(escape(a.label),`data-action="${a.id}" class="action ${a.category||''}" ${a.enabled===false?'disabled':''}`)).join('')); }
+    const placed=layoutActions(room,actions,state);const next=JSON.stringify(placed);
+    if(next!==actionKey){ actionKey=next;setContent(document.querySelector('#room-actions'),placed.map(actionHTML).join('')); }
   }
   const progress=room==='BEDROOM'&&!state.choreHomework?`Homework ${Math.min(100,Math.floor(state.choreHomeworkTicks/(state.hasStudyLamp?12:20)*100))}% — stay here to finish`:room==='BASEMENT'?`Laundry: ${['not started',`washing (${state.laundryWashTicks} ticks)`, 'ready for dryer',`drying (${state.laundryDryTicks} ticks)`,'ready to fold','folded & put away'][state.laundryState]} · Detergent ${state.laundryDetergent}`:room==='OUTSIDE'?`Lawn ${Math.round(state.choreLawnPct)}% · ${state.sprinklerUsed?'Sprinkler already used':'Sprinkler available once today'}`:'';
   document.querySelector('#room-progress').textContent=progress;
@@ -148,30 +172,26 @@ function updateGame() {
 }
 
 function updatePhone(actions) {
-  const el=document.querySelector('#phone'); el.hidden=false;
-  const battery=el.querySelector('#phone-battery'); if(battery)battery.textContent=`${Math.round(state.phoneBattery)}% ${state.phoneCharging?'⚡':''}`;
-  const eta=el.querySelector('#delivery-eta'); if(eta)eta.textContent=state.deliveryOrdered?`Delivery: ${state.deliveryTicks>0?`${Math.ceil(state.deliveryTicks/2)}s remaining`:'arrived'}`:'';
-  const next=JSON.stringify([phoneTab,actions,state.phoneBattery<=5]);
-  if(next===actionKey) return; actionKey=next;
-  const flappyActive=phoneTab==='GAMES' && !!flappyCleanup;
-  let preserved=flappyActive?el.querySelector('#flappy'):null;
-  const scrollTop=el.querySelector('#phone-content')?.scrollTop||0;
-  const focusedAction=el.contains(document.activeElement)?document.activeElement.dataset.action:null;
-  if(preserved) preserved.remove();
-  el.innerHTML=`<div class="phone-frame"><div class="phone-top"><strong>Too Hot Mobile</strong><span id="phone-battery">${Math.round(state.phoneBattery)}% ${state.phoneCharging?'⚡':''}</span></div><div class="phone-tabs">${['HOME','MESSAGES','DELIVERY','MUSIC','GAMES'].map(tab=>button(tab==='HOME'?'⌂':tab[0]+tab.slice(1).toLowerCase(),`data-phone="${tab}" class="${tab===phoneTab?'active':''}"`)).join('')}</div><div class="phone-content" id="phone-content"></div><div class="phone-bottom">${button('Put away','data-command="put-phone"')}${actions.filter(a=>/charge|unplug/.test(a.id)).map(a=>button(escape(a.label),`data-action="${a.id}" ${a.enabled===false?'disabled':''}`)).join('')}</div></div>`;
+  const el=document.querySelector('#phone');el.hidden=false;
+  const battery=el.querySelector('#phone-battery');if(battery)battery.textContent=`${Math.round(state.phoneBattery)}% ${state.phoneCharging?'⚡':''}`;
+  const next=JSON.stringify([phoneTab,actions,state.phoneBattery<=5,selectedDelivery,state.deliveryTicks,state.detergentTicks,state.coldMedTicks,state.deliveryArrived,state.detergentArrived,state.coldMedArrived]);
+  if(next===actionKey)return;actionKey=next;
+  const oldContent=el.querySelector('#phone-content');const scrollTop=oldContent?.scrollTop||0;
+  const active=document.activeElement;const focusedAction=el.contains(active)?active.dataset.action:null;
+  const focusedSelect=active?.id==='phone-delivery';
+  const preserved=phoneTab==='GAMES'&&flappyCleanup?el.querySelector('#flappy'):null;
+  if(preserved)preserved.remove();
+  const charge=actions.find(a=>a.id==='charge');
+  el.innerHTML=`<div class="phone-frame source-phone"><div class="phone-speaker" aria-hidden="true"></div><div class="phone-top"><strong>12:00</strong><span id="phone-battery">${Math.round(state.phoneBattery)}% ${state.phoneCharging?'⚡':''}</span></div><div class="phone-content" id="phone-content">${renderPhoneContent(state,actions,phoneTab,selectedDelivery)}</div><div class="phone-bottom">${button('◁ Back','data-phone="BACK"')}${button('○ Home','data-phone="HOME"')}${charge?button(state.phoneCharging?'✕ Unplug':'⚡ Charge',`data-action="charge" ${charge.enabled?'':'disabled'}`):''}</div><div class="phone-hardware">${button('Put away','data-command="put-phone"')}</div></div>`;
   const content=el.querySelector('#phone-content');
-  if(phoneTab==='HOME') {
-    content.innerHTML=`<h2>Your phone</h2><p>Mom’s coming home at ${time(state.momTimerSeconds)}.</p><div class="app-grid">${[['MESSAGES','✉','Messages'],['DELIVERY','▣','Delivery'],['MUSIC','♫','Music'],['GAMES','▶','Games']].map(([id,icon,label])=>button(`<b>${icon}</b>${label}`,`data-phone="${id}" ${state.phoneBattery<=5?'disabled':''}`)).join('')}</div>${state.friendTextPending?'<p class="notification">New text from your friend!</p>':''}<p>${state.phoneCharging?'Charging…':'Keep your battery above 5% to use apps.'}</p>`;
-  } else if(phoneTab==='GAMES') {
-    if(preserved) content.append(preserved);
-    else if(state.phoneBattery>5) {content.innerHTML='<div id="flappy"></div>';flappyCleanup=mountFlappy(content.querySelector('#flappy'),{getState:()=>state,onMessage:say,isActive:()=>!paused&&!document.hidden&&state.screen==='GAME'&&state.currentRoom==='PHONE'&&phoneTab==='GAMES'&&!modalKind});}
-    else content.innerHTML='<p>No battery — charge the phone!</p>';
-  } else {
-    const group=actions.filter(a=>a.category===({MESSAGES:'messages',DELIVERY:'delivery',MUSIC:'music'}[phoneTab]));
-    content.innerHTML=`<h2>${phoneTab[0]+phoneTab.slice(1).toLowerCase()}</h2>${phoneTab==='MESSAGES'?'<p class="message-bubble">Mom: “Be good! Don’t forget your chores. ♥”</p>':phoneTab==='MUSIC'?`<p>${state.musicPlaying?`Now playing: ${escape(state.musicGenre)}`:'Choose a genre to wind down.'}${state.hasSpeaker?' · Speaker boost':''}</p>`:'<p>Food arrives in the kitchen. Detergent goes to the basement. Drinks are used on arrival.</p>'}<div class="phone-actions">${group.map(a=>button(escape(a.label),`data-action="${a.id}" ${a.enabled===false?'disabled':''}`)).join('')}</div><p id="delivery-eta">${state.deliveryOrdered?`Delivery: ${state.deliveryTicks>0?`${Math.ceil(state.deliveryTicks/2)}s remaining`:'arrived'}`:''}</p>`;
+  if(phoneTab==='GAMES') {
+    const slot=content.querySelector('#flappy');
+    if(preserved&&slot)slot.replaceWith(preserved);
+    else if(slot&&state.phoneBattery>5)flappyCleanup=mountFlappy(slot,{getState:()=>state,onMessage:say,isActive:()=>!paused&&!document.hidden&&state.screen==='GAME'&&state.currentRoom==='PHONE'&&phoneTab==='GAMES'&&!modalKind});
   }
   content.scrollTop=scrollTop;
-  if(focusedAction) [...el.querySelectorAll('[data-action]')].find(b=>b.dataset.action===focusedAction)?.focus({preventScroll:true});
+  if(focusedSelect)el.querySelector('#phone-delivery')?.focus({preventScroll:true});
+  else if(focusedAction)[...el.querySelectorAll('[data-action]')].find(b=>b.dataset.action===focusedAction)?.focus({preventScroll:true});
 }
 
 function buildNightmare() {
@@ -191,14 +211,15 @@ function updateNightmare() {
   document.querySelector('#night-progress').textContent=`${n.inputIndex||0} / ${n.sequence.length} nodes connected`;
 }
 function buildArrival() {
-  app.innerHTML=`<main class="arrival-screen"><div class="arrival-sky"><span class="stars">·　✦　　　·　　　　　✧　　　·</span><div class="house">⌂<span class="mom">Mom</span></div><div class="car">▰<span>●　　　●</span></div></div><div class="arrival-copy"><p class="eyebrow">YOU MADE IT THROUGH DAY ${state.completedDay||state.day}</p><h1>Mom’s home!</h1><p>“I’m home! How did everything go?”</p><div class="allowance"><strong>+${state.pendingAllowance} coins</strong><span>allowance · ${choreCount(state)} / 6 chores complete<br>+${state.lastDayBonus} survival & chore bonus</span></div><p>${state.lastDayDone?'Three days survived. She never knew.':'Spend your allowance, then get ready for tomorrow.'}</p>${button(state.lastDayDone?'Thanks Mom! Finish':'Go to your room →','class="primary" data-command="arrival"')}</div></main>`;
+  app.innerHTML=`<main class="arrival-screen">${arrivalSceneHTML({lastDayDone:state.lastDayDone})}<div class="arrival-copy"><p class="eyebrow">YOU MADE IT THROUGH DAY ${state.completedDay||state.day}</p><h1>Mom’s home!</h1><p>“I’m home! How did everything go?”</p><div class="allowance"><strong>+${state.pendingAllowance} coins</strong><span>allowance · ${choreCount(state)} / 6 chores complete<br>+${state.lastDayBonus} survival & chore bonus</span></div><p>${state.lastDayDone?'Three days survived. She never knew.':'Spend your allowance, then get ready for tomorrow.'}</p>${button(state.lastDayDone?'Thanks Mom! Finish':'Go to your room →','class="primary" data-command="arrival"')}</div></main>`;
 }
 function buildShop() {
-  app.innerHTML=`<main class="shop-screen"><header><div><p class="eyebrow">BETWEEN DAYS</p><h1>Upgrade shop</h1><p>A little preparation goes a long way.</p></div><div class="shop-balance"><strong id="shop-coins"></strong>${button('Next day →','class="primary" data-command="next-day"')}</div></header><div class="shop-grid" id="shop-items"></div><p id="shop-message" role="status"></p></main>`;
+  app.innerHTML=`<main class="shop-screen source-shop">${shopFrameHTML(`<header><div><p class="eyebrow">BETWEEN DAYS</p><h1>Upgrade shop</h1><p>A little preparation goes a long way.</p></div><div class="shop-balance"><strong id="shop-coins"></strong>${button('Next day →','class="primary" data-command="next-day"')}</div></header><div class="shop-grid" id="shop-items"></div><p id="shop-message" role="status"></p>`)}</main>`;
 }
 function updateShop() {
+  const shop=document.querySelector('.source-shop');if(manifest.bedroom)shop.style.backgroundImage=`url("${manifest.bedroom}")`;
   document.querySelector('#shop-coins').textContent=`★ ${state.coins} coins`;
-  setContent(document.querySelector('#shop-items'),availableShopItems(state).map(item=>`<article class="shop-item"><h2>${escape(item.name)}</h2><p>${escape(item.description)}</p>${button(`${state[item.flag]?'Owned':`${item.cost} coins · Buy`}`,`data-buy="${item.id}" ${state[item.flag]||state.coins<item.cost?'disabled':''}`)}</article>`).join(''));
+  setContent(document.querySelector('#shop-items'),availableShopItems(state).map(item=>`<article class="shop-item">${shopItemIconHTML(item.id)}<h2>${escape(item.name)}</h2><p>${escape(item.description)}</p>${button(`${state[item.flag]?'Owned':`${item.cost} coins · Buy`}`,`data-buy="${item.id}" ${state[item.flag]||state.coins<item.cost?'disabled':''}`)}</article>`).join(''));
   document.querySelector('#shop-message').textContent=notice;
 }
 function buildGameOver() {
@@ -215,10 +236,11 @@ app.addEventListener('click',async e=>{
   const b=e.target.closest('button, a[data-command]'); if(!b||b.disabled)return;
   const cmd=b.dataset.command;
   if(cmd)e.preventDefault();
+  if(b.dataset.floor){if(!paused&&state.screen==='GAME'){navFloor=b.dataset.floor;updateFloorNav();}return;}
   if(b.dataset.room){navigate(b.dataset.room);return;}
   if(b.dataset.action){doAction(b.dataset.action);return;}
   if(b.dataset.node){nightmareInput(state,Number(b.dataset.node));render();return;}
-  if(b.dataset.phone){if(state.phoneBattery<=5&&b.dataset.phone!=='HOME')return;flappyCleanup?.();flappyCleanup=null;phoneTab=b.dataset.phone;actionKey='';render();return;}
+  if(b.dataset.phone){const target=b.dataset.phone==='BACK'?parentPhoneScreen(phoneTab):b.dataset.phone;if(target==='PUT_AWAY'){navigate(state.roomBeforePhone||'LIVING_ROOM');return;}if(state.phoneBattery<=5&&!['HOME','BACK'].includes(b.dataset.phone))return;flappyCleanup?.();flappyCleanup=null;phoneTab=target;actionKey='';render();return;}
   if(b.dataset.buy){const result=purchase(state,b.dataset.buy);say(result?state.message:'Cannot buy that item.');render();return;}
   if(cmd==='new')newGame();
   if(cmd==='menu'){state=createGame();paused=false;render();}
@@ -234,6 +256,7 @@ app.addEventListener('click',async e=>{
     try{if(document.fullscreenElement)await document.exitFullscreen();else if(document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen();else say('Fullscreen is unavailable here. You can still play normally.');}catch{say('Fullscreen is unavailable here. You can still play normally.');}
   }
 });
+app.addEventListener('change',e=>{if(e.target.id==='phone-delivery'){selectedDelivery=e.target.value;actionKey='';render();}});
 function togglePause() {
   if(state.screen!=='GAME'&&state.screen!=='NIGHTMARE')return;
   if(modalKind==='minigame')closeModal();

@@ -42,7 +42,7 @@ export function getActions(s, room = s.currentRoom) {
       if (s.squirrelPresent) push('shoo', `SHOO ${s.squirrelCount} SQUIRREL(S)!`, true, 'danger');
       else {
         push('tv', toggle(s, 'tvWatching', 'Watch TV / Chill', 'Stop Watching TV'));
-        push('vacuum', s.choreVacuum ? 'Vacuumed ✓' : 'Vacuum (+1 coin)', !s.choreVacuum, 'chore');
+        push('vacuum', s.choreVacuum ? 'Vacuumed ✓' : 'Vacuum', !s.choreVacuum, 'chore');
         if (s.mittensMessRoom === room) push('clean-mess', 'Clean Mittens’ Mess');
       }
       push('window', s.windowBroken ? `Window Broken (${Math.ceil(s.windowBrokenCooldown / 2)}s)` : toggle(s, 'windowOpen', 'Open Window', 'Close Window'), !s.windowBroken);
@@ -53,8 +53,8 @@ export function getActions(s, room = s.currentRoom) {
     case 'KITCHEN':
       push('drink-kitchen', 'Drink Water' + (!(s.hasStepStool || s.hasKitchenStool) ? ' — need stool' : ''), s.hasStepStool || s.hasKitchenStool, 'care');
       push('dishes', s.choreDishes ? 'Dishes ✓' : 'Wash Dishes', !s.choreDishes && (s.hasStepStool || s.hasKitchenStool), 'chore');
-      push('sweep', s.choreSweepKitchen ? 'Swept ✓' : 'Sweep Kitchen (+1 coin)', !s.choreSweepKitchen, 'chore');
-      push('feed-kitchen', `Cat Food (${s.catFoodScoops} scoops)`, s.catFoodScoops > 0, 'care');
+      push('sweep', s.choreSweepKitchen ? 'Swept ✓' : 'Sweep Kitchen', !s.choreSweepKitchen, 'chore');
+      push('feed-kitchen', s.catFoodScoops>0?`Cat Food (${s.catFoodScoops})`:'Cat Food Empty', s.catFoodScoops > 0, 'care');
       push('window-kitchen', toggle(s, 'kitchenWindowOpen', 'Open Kitchen Window', 'Close Kitchen Window'));
       if (s.choreTrashOut && !s.choreTrashBagIn) push('trash-bag', 'Put Trash Bag In', true, 'chore');
       if (s.deliveryArrived && s.hunger < 95) push('pickup-food', 'Pick Up Delivery!', true, 'care');
@@ -65,7 +65,7 @@ export function getActions(s, room = s.currentRoom) {
       push('tidy-kitchen', 'Tidy Kitchen' + (s.choreCleanKitchen ? ' ✓' : ''), !s.choreCleanKitchen, 'chore');
       break;
     case 'BEDROOM':
-      push('feed-bedroom', s.catHunger >= 90 ? 'Mittens Is Full' : `Feed Mittens (${s.catFoodScoops} scoops)`, s.catFoodScoops > 0 && s.catHunger < 90, 'care');
+      push('feed-bedroom', s.catFoodScoops<=0?'No Cat Food Left':s.catHunger >= 90 ? 'Mittens Is Full' : `Feed Mittens (${s.catFoodScoops})`, s.catFoodScoops > 0 && s.catHunger < 90, 'care');
       push('window-bedroom', toggle(s, 'bedroomWindowOpen', 'Open Bedroom Window', 'Close Bedroom Window'));
       push('charge', s.phoneCharging ? `Unplug Phone (${Math.floor(s.phoneBattery)}%)` : s.phoneBattery >= 100 ? 'Phone Fully Charged ✓' : 'Charge Phone' + (s.phoneChargeCount >= 3 ? ' — high power risk!' : ''), s.phoneCharging || s.phoneBattery < 100);
       push('rest-bedroom', 'Rest on Bed', true, 'care');
@@ -80,6 +80,7 @@ export function getActions(s, room = s.currentRoom) {
       push('wrench', s.hasWrench ? 'Wrench: Carrying ✓' : s.roachesCleared ? 'Pick Up Wrench' : 'Wrench — clear roaches first', s.wrenchInGarage && s.roachesCleared);
       if (s.roachesPresent && !s.roachesCleared) push('roaches', s.hasRoachSpray ? 'Use Roach Spray!' : 'Roaches — need spray from Mom’s room', s.hasRoachSpray, 'repair');
       else if (s.ratsPresent && !s.ratsClearedToday) push('rats', s.hasMouseTrap ? 'Place Mouse Trap!' : 'RATS — buy a Mouse Trap in shop', s.hasMouseTrap, 'repair');
+      else if(s.roachesCleared)push('roaches-cleared','Roaches ✓ Cleared',false,'repair');
       if (s.powerOut) push('circuit', 'Open Fuse Box', true, 'repair');
       break;
     case 'MOMS_ROOM':
@@ -92,11 +93,11 @@ export function getActions(s, room = s.currentRoom) {
       push('shower', s.showeredToday ? 'Showered ✓ — dry off in bedroom' : 'Take a Cold Shower', !s.showeredToday, 'care');
       push('drink-bathroom', 'Drink From Sink', true, 'care');
       push('medicine-cabinet', s.medicineUsed ? 'Cabinet Used Today ✓' : 'Medicine Cabinet', !s.medicineUsed, 'care');
-      push('mop', s.choreMopBathroom ? 'Mopped ✓' : 'Mop Bathroom (+1 coin)', !s.choreMopBathroom, 'chore');
+      push('mop', s.choreMopBathroom ? 'Mopped ✓' : 'Mop Bathroom', !s.choreMopBathroom, 'chore');
       break;
     case 'BASEMENT':
       switch (s.laundryState) {
-        case 0: push('washer', `Put Laundry in Washer (soap: ${s.laundryDetergent})`, s.laundryDetergent > 0, 'chore'); break;
+        case 0: push('washer', s.laundryDetergent>0?`Put Laundry in Washer (soap: ${s.laundryDetergent})`:'Out of Detergent! Order via phone (2 coins)', s.laundryDetergent > 0, 'chore'); break;
         case 1: push('washer', `Washer Running (${Math.min(100, Math.floor(s.laundryWashTicks / (s.hasLaundrysoap ? 7 : 10) * 100))}%)`, false, 'chore'); break;
         case 2: push('dryer', 'Move to Dryer!', true, 'chore'); break;
         case 3: push('dryer', `Dryer Running (${Math.min(100, Math.floor(s.laundryDryTicks / (s.hasLaundrysoap ? 7 : 10) * 100))}%)`, false, 'chore'); break;
@@ -107,13 +108,14 @@ export function getActions(s, room = s.currentRoom) {
       break;
     case 'OUTSIDE':
       push('trash', s.choreTrashOut ? 'Trash Out ✓ — new bag in kitchen' : 'Take Out Trash', !s.choreTrashOut, 'chore');
-      push('mail', s.choreMailIn ? 'Mail In ✓' : 'Bring In Mail (+1 coin)', !s.choreMailIn, 'chore');
+      push('mail', s.choreMailIn ? 'Mail In ✓' : 'Bring In Mail', !s.choreMailIn, 'chore');
       if (s.mittensEscaped) push('find-mittens', 'Find Mittens!', true, 'care');
       if (s.choreLawnMowed) push('start-mowing', 'Lawn Mowed ✓', false, 'chore');
+      else if(s.thunderstorm)push('start-mowing','Can’t Mow — Thunderstorm!',false,'chore');
       else if (!s.mowingActive) push('start-mowing', s.thunderstorm ? 'Can’t Mow — Thunderstorm!' : `Start Mowing (${s.choreLawnPct}%)`, !s.thunderstorm, 'chore');
       else { push('mow', `MOW! (${s.choreLawnPct}%)`, !s.thunderstorm, 'chore'); push('stop-mowing', 'Stop Mowing'); }
       push('sprinkler', s.sprinklerUsed ? 'Sprinkler Used ✓' : 'Run Through Sprinkler', !s.sprinklerUsed, 'care');
-      push('plants', s.choreWaterPlants ? 'Outdoor Plants ✓' : 'Water Outdoor Plants (+1 coin)', !s.choreWaterPlants, 'chore');
+      push('plants', s.choreWaterPlants ? 'Outdoor Plants ✓' : 'Water Outdoor Plants', !s.choreWaterPlants, 'chore');
       break;
     case 'PHONE': return phoneActions(s);
   }

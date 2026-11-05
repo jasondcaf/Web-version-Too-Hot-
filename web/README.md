@@ -66,13 +66,13 @@ See [PARITY.md](PARITY.md) for the Java-to-browser mapping, exact values and ori
 
 The Java timer decrements one displayed second every **500 ms**. This port retains that executable behavior: days last approximately **150, 135 and 120 real seconds**, excluding nightmare/arrival/shop/pause. The original old README’s “five minutes” description is inaccurate.
 
-Browser usability changes: explicit pause, hidden-tab suspension (including minigames), direct room navigation rather than floor-switch strips, larger touch targets, scrolling layouts and fullscreen fallback. State remains in memory with no autosave, matching Java’s restart behavior. The shop, arrival animation and some overlays use simplified responsive presentation; there is no claim of pixel-perfect Swing reproduction.
+The interface restores the Java room-specific button positions in their shared 800×455 coordinate system, ground/upstairs/basement navigation, separate Mom/Friend phone conversations, delivery dropdown, TV shop, and illustrated house/car/Mom arrival. The HUD keeps stacked stats on the left, status indicators in the middle, and countdown on the right. Browser usability changes are explicit pause, hidden-tab suspension (including minigames), 44px touch targets, scrolling on short displays, fullscreen fallback, and a flowing layout on small phones. State remains in memory with no autosave, matching Java’s restart behavior. Missing artwork and some illustration details still prevent a pixel-perfect parity claim.
 
 Known Java quirks are retained and described in PARITY: delivery ordering locks after certain purchases, food pickup reappears, generator/medicine-kit/ice-pack upgrades have limited or unused source effects, priority notes do not affect rewards, and homework/laundry can progress during outages. These have not been silently redesigned.
 
 ## Artwork and credits
 
-`npm run assets` copies only referenced images into generated `public/assets/`, then the production build includes them. It first prefers the exact Java filenames in `../assets/rooms/`; if absent, it maps the supplied root-level collection:
+`npm run assets` copies only referenced images into generated `public/assets/`, then the production build includes them. It first prefers the actual Java runtime files in `../assets/rooms/`, then exact runtime names uploaded at the repository root (for example `garage.jpg`), then maps the supplied root-level collection below. Lookup tolerates Windows filename casing. `dist/assets/sources.json` records which input file was selected for each image:
 
 | Game image | Supplied source |
 | --- | --- |
@@ -88,9 +88,14 @@ The uploaded **Spiral Atlas Visual Novel House Backgrounds © 2023 by Spiral Atl
 
 **Still missing:** original `garage` and `laundry_room` backgrounds, and `cat`, `cat_bowl`, `squirrel`, `closet_interior`, `roach_ai`, `rat`, `sprinkler_on`/`sprinkler_off` sprites. The port uses source-style gradients/drawn fallbacks, not unrelated downloaded art. Gameplay in those rooms is implemented. To restore original visuals, add the original JPG/PNG/JPEG files under root `assets/rooms/` and rebuild; no browser code change is needed. Do not upload the large exploratory `assets/preview` collection. Accompany new art with its original credits/licenses.
 
+
+The separately attached `vn_house.zip` could not be read because it exceeded this workspace’s 32 MiB attachment-transfer limit. No new artwork from that archive has been included. Send the individual runtime images directly inside your desktop `assets/rooms/` folder (or split them into ZIPs smaller than 32 MiB); nested source collections are not required.
+
+The user’s newly attached Java files match the original uploaded source byte-for-byte, and all 49 subsequently uploaded compiled classes match a recompile in disassembly. An older Java source version was not established. The initial visual mismatch came from missing runtime images and presentation changes made in the first browser port.
+
 ## Browser testing and remaining verification
 
-Completed in this workspace: **42 unit tests passed**, **12 browser scenarios passed** (six desktop Chromium and six iPad-sized Chromium with touch), production build passed, and production HTTP checks passed for the HTML, all seven supplied JPGs, credits, and absence of development test hooks. Browser scenarios reported no JavaScript page errors. Landscape and portrait touch layouts were exercised. These results do not include Safari or a physical Windows/iPad session.
+Completed in this workspace: **56 unit tests passed**, **14 browser scenarios passed** (seven desktop Chromium and seven iPad-sized Chromium with touch), production build passed, and production HTTP checks passed for the HTML, all seven supplied JPGs, credits, and absence of development test hooks. Browser scenarios reported no JavaScript page errors. Landscape and portrait touch layouts were exercised. These results do not include Safari or a physical Windows/iPad session.
 
 The automated browser suite uses Playwright, real rendered controls, and development-only hooks to set up rare events and advance long countdowns. The production bundle excludes those hooks. Unit tests include a full three-day action-based simulation with all six daily chores, resource management and shop progression; browser tests separately exercise the actual dish needle, six roach targets and observed fuse/node sequences.
 

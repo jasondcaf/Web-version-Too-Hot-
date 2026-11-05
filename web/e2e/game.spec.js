@@ -6,6 +6,20 @@ const errors = new WeakMap();
 const room = (id) => `[data-room="${id}"]`;
 const action = (id) => `[data-action="${id}"]`;
 async function press(page, selector, touch = false) {
+  // Use the same floor buttons a player uses. A floor change only switches
+  // navigation; the room changes when its room button is pressed.
+  const requestedRoom = typeof selector === 'string' && selector.match(/^\[data-room="([A-Z_]+)"\]$/)?.[1];
+  if (requestedRoom && !await page.locator(selector).isVisible()) {
+    const desiredFloor = ['MOMS_ROOM','BATHROOM'].includes(requestedRoom) ? 'UPSTAIRS' : requestedRoom === 'BASEMENT' ? 'BASEMENT' : 'GROUND';
+    const ground = page.locator('[data-floor="GROUND"]');
+    if (await ground.isVisible()) {
+      if (touch) await ground.tap(); else await ground.click();
+    }
+    if (desiredFloor !== 'GROUND') {
+      const floor = page.locator(`[data-floor="${desiredFloor}"]`);
+      if (touch) await floor.tap(); else await floor.click();
+    }
+  }
   const control = typeof selector === 'string' ? page.locator(selector) : selector;
   if (touch) await control.tap(); else await control.click();
 }
@@ -208,29 +222,98 @@ test('arrival, allowance, day-specific shop, daily resets and three-day win', as
   await expect(page.locator('#ending-reason')).toContainText('all 3 days');
 });
 
-test('phone apps, delivery, music and Flappy touch/keyboard input are functional', async ({page},info) => {
+test('phone contact pages, delivery selector, music and Flappy touch/keyboard input are functional', async ({page},info) => {
   const touch=!!info.project.use.hasTouch;
   await start(page,touch); await safe(page);
   await press(page,room('PHONE'),touch);
-  await press(page,'.phone-tabs [data-phone="MESSAGES"]',touch);
+  await expect(page.locator('.phone-tabs')).toHaveCount(0);
+  await press(page,'[data-phone="MESSAGES"]',touch);
+  await expect(page.locator('[data-phone="MSG_MOM"]')).toBeVisible();
+  await expect(page.locator('[data-phone="MSG_FRIEND"]')).toBeVisible();
+  await expect(page.locator(action('call-friend'))).toHaveCount(0);
+  await press(page,'[data-phone="MSG_MOM"]',touch);
+  await expect(page.locator(action('call-mom'))).toBeVisible();
+  await expect(page.locator(action('text-mom'))).toBeVisible();
+  await expect(page.locator(action('call-friend'))).toHaveCount(0);
   await setup(page,{stress:40});
+  await press(page,action('text-mom'),touch);
+  expect(await state(page,'stress')).toBe(38);
+  await press(page,'[data-phone="BACK"]',touch);
+  await press(page,'[data-phone="MSG_FRIEND"]',touch);
+  await expect(page.locator(action('call-mom'))).toHaveCount(0);
+  await setup(page,{stress:40,friendTextPending:true});
   await press(page,action('call-friend'),touch);
   expect(await state(page,'stress')).toBe(25);
-  await press(page,'.phone-tabs [data-phone="MUSIC"]',touch);
+  expect(await state(page,'friendTextPending')).toBe(false);
+  await press(page,'[data-phone="HOME"]',touch);
+  await press(page,'[data-phone="MUSIC"]',touch);
   await press(page,action('music-Lo-fi'),touch);
   expect(await state(page,'musicPlaying')).toBe(true);
-  await press(page,'.phone-tabs [data-phone="DELIVERY"]',touch);
-  await press(page,action('order-Food'),touch);
+  await press(page,'[data-phone="HOME"]',touch);
+  await press(page,'[data-phone="DELIVERY"]',touch);
+  await expect(page.locator('#phone-delivery')).toBeVisible();
+  await page.locator('#phone-delivery').selectOption('order-Food');
+  await expect(page.locator('#phone-order')).toHaveAttribute('data-action','order-Food');
+  await press(page,'#phone-order',touch);
   expect(await state(page,'coins')).toBe(3);
   await ticks(page,20);
   expect(await state(page,'deliveryArrived')).toBe(true);
-  await press(page,'.phone-tabs [data-phone="GAMES"]',touch);
+  await press(page,'[data-phone="HOME"]',touch);
+  await press(page,'[data-phone="GAMES"]',touch);
   const canvas=page.locator('#flappy canvas');
   await expect(canvas).toBeVisible();
   const battery=await state(page,'phoneBattery');
   await press(page,canvas,touch);
   expect(await state(page,'phoneBattery')).toBeLessThan(battery);
   await page.keyboard.press('Space');
-  await press(page,'[data-command="put-phone"]',touch);
+  await press(page,'[data-phone="HOME"]',touch);
+  await press(page,'[data-phone="BACK"]',touch);
   await expect(page.locator('#room-title')).toHaveText('Living Room');
+});
+
+async function visibleRooms(page) {
+  return page.locator('.room-nav [data-room]:visible').evaluateAll(buttons=>buttons.map(b=>b.dataset.room).sort());
+}
+async function assertComfortableNonOverlappingActions(page) {
+  const boxes=await page.locator('.room-actions button.action:enabled').evaluateAll(buttons=>buttons.filter(b=>b.getClientRects().length).map(b=>{
+    const r=b.getBoundingClientRect();
+    return {id:b.dataset.action,x:r.x,y:r.y,w:r.width,h:r.height};
+  }));
+  for(const b of boxes) {
+    expect(b.w,`${b.id} touch width`).toBeGreaterThanOrEqual(44);
+    expect(b.h,`${b.id} touch height`).toBeGreaterThanOrEqual(44);
+  }
+  for(let i=0;i<boxes.length;i++) for(let j=i+1;j<boxes.length;j++) {
+    const a=boxes[i],b=boxes[j];
+    const intersectionWidth=Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x);
+    const intersectionHeight=Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y);
+    expect(intersectionWidth>1 && intersectionHeight>1,`${a.id} overlaps ${b.id}`).toBe(false);
+  }
+}
+
+test('original floor navigation and source-positioned room controls stay usable', async ({page},info) => {
+  const touch=!!info.project.use.hasTouch;
+  await start(page,touch);
+  await expect.poll(()=>visibleRooms(page)).toEqual(['BEDROOM','GARAGE','KITCHEN','LIVING_ROOM','OUTSIDE','PHONE']);
+  await press(page,'[data-floor="UPSTAIRS"]',touch);
+  expect(await state(page,'currentRoom')).toBe('LIVING_ROOM');
+  await expect(page.locator('#room-title')).toHaveText('Living Room');
+  await expect.poll(()=>visibleRooms(page)).toEqual(['BATHROOM','MOMS_ROOM','PHONE']);
+  await press(page,'[data-floor="GROUND"]',touch);
+  await press(page,'[data-floor="BASEMENT"]',touch);
+  expect(await state(page,'currentRoom')).toBe('LIVING_ROOM');
+  await expect.poll(()=>visibleRooms(page)).toEqual(['BASEMENT']);
+  await press(page,room('BASEMENT'),touch);
+  expect(await state(page,'currentRoom')).toBe('BASEMENT');
+  await press(page,room('KITCHEN'),touch);
+  await expect(page.locator('.room-actions')).toHaveClass(/source-room-actions/);
+  await expect(page.locator(action('drink-kitchen'))).toHaveAttribute('data-source-x','18');
+  await expect(page.locator(action('feed-kitchen'))).toHaveAttribute('data-source-x','215');
+  await expect(page.locator(action('freezer'))).toHaveAttribute('data-source-x','603');
+  for(const id of ['LIVING_ROOM','KITCHEN','BEDROOM','GARAGE','MOMS_ROOM','BATHROOM','BASEMENT','OUTSIDE']) {
+    await press(page,room(id),touch);
+    await assertComfortableNonOverlappingActions(page);
+  }
+  await press(page,room('KITCHEN'),touch);
+  await page.screenshot({path:info.outputPath('source-kitchen-layout.png'),fullPage:true});
 });
